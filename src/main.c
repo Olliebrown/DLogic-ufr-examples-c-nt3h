@@ -48,6 +48,10 @@ void page_in_sector_read(void);
 void page_in_sector_write(void);
 void linear_read(void);
 void linear_write(void);
+void pwd_pack_write(void);
+void keys_lock(void);
+void keys_unlock(void);
+
 //------------------------------------------------------------------------------
 int main(void)
 {
@@ -63,56 +67,57 @@ int main(void)
 	printf(" --------------------------------------------------\n");
 
 	int mode = 0;
-		    printf("Select reader opening mode:\n");
-		    printf(" (1) - Simple Reader Open\n");
-		    printf(" (2) - Advanced Reader Open\n");
-		    scanf("%d", &mode);
-		    fflush(stdin);
+	printf("Select reader opening mode:\n");
+	printf(" (1) - Simple Reader Open\n");
+	printf(" (2) - Advanced Reader Open\n");
+	scanf("%d", &mode);
+	fflush(stdin);
 
-		    if (mode == 1){
-		    	status = ReaderOpen();
-		    }
-		    else if (mode == 2)
-		    {
-		       uint32_t reader_type = 1;
-		       char port_name[1024] = "";
-		       uint32_t port_interface = 2;
-		       char open_args[1024] = "";
-		       const char str_interface[2] = "";
+	if (mode == 1){
+		status = ReaderOpen();
+	}
+	else if (mode == 2)
+	{
+	   uint32_t reader_type = 1;
+	   char port_name[1024] = "";
+	   uint32_t port_interface = 2;
+	   char open_args[1024] = "";
+	   const char str_interface[2] = "";
 
-		       printf("Enter reader type:\n");
-		       scanf("%d", &reader_type);
-		       fflush(stdin);
+	   printf("Enter reader type:\n");
+	   scanf("%d", &reader_type);
+	   fflush(stdin);
 
-		       printf("Enter port name:\n");
-		       scanf("%s", port_name);
-		       fflush(stdin);
+	   printf("Enter port name:\n");
+	   scanf("%s", port_name);
+	   fflush(stdin);
 
-		       printf("Enter port interface:\n");
-		       scanf("%s", str_interface);
-		       if (str_interface[0] == 'U'){
-		           port_interface = 85;
-		       } else if (str_interface[0] == 'T'){
-		           port_interface = 84;
-		       } else{
-		           port_interface = atoi(str_interface);
-		       }
+	   printf("Enter port interface:\n");
+	   scanf("%s", str_interface);
+	   if (str_interface[0] == 'U'){
+		   port_interface = 85;
+	   } else if (str_interface[0] == 'T'){
+		   port_interface = 84;
+	   } else{
+		   port_interface = atoi(str_interface);
+	   }
 
-		       fflush(stdin);
+	   fflush(stdin);
 
-		       printf("Enter additional argument:\n");
-		       scanf("%s", open_args);
-		       fflush(stdin);
+	   printf("Enter additional argument:\n");
+	   scanf("%s", open_args);
+	   fflush(stdin);
 
-		       status = ReaderOpenEx(reader_type, port_name, port_interface, open_args);
+	   status = ReaderOpenEx(reader_type, port_name, port_interface, open_args);
 
-		    }
-		    else
-		    {
-		        printf("Invalid input. Press any key to quit the application...");
-		        getchar();
-				return EXIT_FAILURE;
-		    }
+	}
+	else
+	{
+		printf("Invalid input. Press any key to quit the application...");
+		getchar();
+		return EXIT_FAILURE;
+	}
+
 	if (status != UFR_OK)
 	{
 		printf("Error while opening device, status is: 0x%08X\n", status);
@@ -233,6 +238,18 @@ void menu(char key)
 			linear_write();
 			break;
 
+		case '7':
+			pwd_pack_write();
+			break;
+
+		case '8':
+			keys_lock();
+			break;
+
+		case '9':
+			keys_unlock();
+			break;
+
 		case '\x1b':
 			break;
 
@@ -255,7 +272,10 @@ void usage(void)
 			   "  (3) - Read Page In Sector\n"
 			   "  (4) - Write Page In Sector\n"
 			   "  (5) - Linear Read\n"
-			   "  (6) - Linear Write\n");
+			   "  (6) - Linear Write\n"
+			   "  (7) - Writing PWD_PACK into reader\n"
+			   "  (8) - Keys lock\n"
+			   "  (9) - Keys unlock\n");
 }
 //------------------------------------------------------------------------------
 UFR_STATUS NewCardInField(uint8_t sak, uint8_t *uid, uint8_t uid_size)
@@ -360,12 +380,102 @@ bool EnterLinearData(uint8_t *linear_data, uint16_t *linear_len)
 		return false;
 }
 //----------------------------------------------------------------------------------
+bool EnterPwd(uint8_t *pwd)
+{
+	char str[100];
+	size_t str_len;
+
+	scanf("%[^\n]%*c", str);
+	str_len = hex2bin(pwd, str);
+	if(str_len != 4)
+	{
+		printf("\nYou need to enter 4 hexadecimal numbers with or without spaces or with : as delimiter\n");
+		scanf("%[^\n]%*c", str);
+		str_len = hex2bin(pwd, str);
+		if(str_len != 4)
+			return false;
+	}
+
+	return true;
+}
+//----------------------------------------------------------------------------------
+bool EnterPack(uint8_t *pack)
+{
+	char str[100];
+	size_t str_len;
+
+	scanf("%[^\n]%*c", str);
+	str_len = hex2bin(pack, str);
+	if(str_len != 2)
+	{
+		printf("\nYou need to enter 2 hexadecimal numbers with or without spaces or with : as delimiter\n");
+		scanf("%[^\n]%*c", str);
+		str_len = hex2bin(pack, str);
+		if(str_len != 2)
+			return false;
+	}
+
+	return true;
+}
+//--------------------------------------------------------------------------------------------------
+bool EnterPassword(uint8_t *password)
+{
+	char str[100];
+	size_t str_len;
+	char key;
+
+	printf(" (1) - ASCI\n"
+		   " (2) - HEX\n");
+
+	while (!_kbhit())
+		;
+	key = _getch();
+
+	if(key == '1')
+	{
+		printf("Enter 8 ASCI characters\n");
+		scanf("%[^\n]%*c", str);
+		str_len = strlen(str);
+		if(str_len != 8)
+		{
+			printf("\nYou need to enter 8 characters\n");
+			scanf("%[^\n]%*c", str);
+			str_len = strlen(str);
+			if(str_len != 8)
+				return false;
+		}
+		memcpy(password, str, 8);
+		return true;
+	}
+	else if(key == '2')
+	{
+		printf("Enter 8 hexadecimal bytes\n");
+		scanf("%[^\n]%*c", str);
+		str_len = hex2bin(password, str);
+		if(str_len != 8)
+		{
+			printf("\nYou need to enter 8 hexadecimal numbers with or without spaces or with : as delimiter\n");
+			scanf("%[^\n]%*c", str);
+			str_len = hex2bin(password, str);
+			if(str_len != 8)
+				return false;
+		}
+		return true;
+	}
+	else
+		return false;
+}
+//----------------------------------------------------------------------------------
 void page_read(void)
 {
 	UFR_STATUS status;
 	int page_nr_int;
 	uint8_t page_nr;
 	uint8_t data[16];
+	char key;
+	uint8_t pwd_pack[6];
+	uint8_t pwd_pack_idx;
+	int pwd_pack_idx_int;
 
 	printf(" -------------------------------------------------------------------\n");
 	printf("                        Page data read                              \n");
@@ -375,7 +485,51 @@ void page_read(void)
 	scanf("%d%*c", &page_nr_int);
 	page_nr = page_nr_int;
 
-	status = BlockRead(data, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	printf("\nEnter authentication key mode\n"
+			" (1) - No authentication\n"
+			" (2) - Provided key\n"
+			" (3) - Reader key authentication\n"
+			);
+
+	while (!_kbhit())
+			;
+	key = _getch();
+
+	if(key == '1')
+	{
+		status = BlockRead(data, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	}
+	else if(key == '2')
+	{
+		printf("\nEnter PWD (4 hexadecimal bytes)\n");
+		if(!EnterPwd(pwd_pack))
+		{
+			printf("\nPWD error\n");
+			return;
+		}
+
+		printf("\nEnter PACK (2 hexadecimal bytes)\n");
+		if(!EnterPack(&pwd_pack[4]))
+		{
+			printf("\nPACK error\n");
+			return;
+		}
+
+		status = BlockRead_PK(data, page_nr, T2T_WITH_PWD_AUTH, pwd_pack);
+	}
+	else if(key == '3')
+	{
+		printf("\nEnter PWD_PACK reader index (0 - 31)\n");
+		scanf("%d%*c", &pwd_pack_idx_int);
+		pwd_pack_idx = pwd_pack_idx_int;
+
+		status = BlockRead(data, page_nr, T2T_WITH_PWD_AUTH, pwd_pack_idx);
+	}
+	else
+	{
+		printf("\nWrong choice\n");
+		return;
+	}
 
 	if(status)
 	{
@@ -397,6 +551,10 @@ void page_write(void)
 	int page_nr_int;
 	uint8_t page_nr;
 	uint8_t data[16];
+	char key;
+	uint8_t pwd_pack[6];
+	uint8_t pwd_pack_idx;
+	int pwd_pack_idx_int;
 
 	printf(" -------------------------------------------------------------------\n");
 	printf("                        Page data write                             \n");
@@ -413,7 +571,51 @@ void page_write(void)
 		return;
 	}
 
-	status = BlockWrite(data, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	printf("\nEnter authentication key mode\n"
+			" (1) - No authentication\n"
+			" (2) - Provided key\n"
+			" (3) - Reader key authentication\n"
+			);
+
+	while (!_kbhit())
+			;
+	key = _getch();
+
+	if(key == '1')
+	{
+		status = BlockWrite(data, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	}
+	else if(key == '2')
+	{
+		printf("\nEnter PWD (4 hexadecimal bytes)\n");
+		if(!EnterPwd(pwd_pack))
+		{
+			printf("\nPWD error\n");
+			return;
+		}
+
+		printf("\nEnter PACK (2 hexadecimal bytes)\n");
+		if(!EnterPack(&pwd_pack[4]))
+		{
+			printf("\nPACK error\n");
+			return;
+		}
+
+		status = BlockWrite_PK(data, page_nr, T2T_WITH_PWD_AUTH, pwd_pack);
+	}
+	else if(key == '3')
+	{
+		printf("\nEnter PWD_PACK reader index (0 - 31)\n");
+		scanf("%d%*c", &pwd_pack_idx_int);
+		pwd_pack_idx = pwd_pack_idx_int;
+
+		status = BlockWrite(data, page_nr, T2T_WITH_PWD_AUTH, pwd_pack_idx);
+	}
+	else
+	{
+		printf("\nWrong choice\n");
+		return;
+	}
 
 	if(status)
 	{
@@ -432,6 +634,11 @@ void page_in_sector_read(void)
 	uint8_t sector_nr;
 	uint8_t page_nr;
 	uint8_t data[16];
+	char key;
+	uint8_t pwd_pack[6];
+	uint8_t pwd_pack_idx;
+	int pwd_pack_idx_int;
+
 
 	printf(" -------------------------------------------------------------------\n");
 	printf("                    Page in sector data read                        \n");
@@ -445,7 +652,51 @@ void page_in_sector_read(void)
 	scanf("%d%*c", &page_nr_int);
 	page_nr = page_nr_int;
 
-	status = BlockInSectorRead(data, sector_nr, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	printf("\nEnter authentication key mode\n"
+			" (1) - No authentication\n"
+			" (2) - Provided key\n"
+			" (3) - Reader key authentication\n"
+			);
+
+	while (!_kbhit())
+			;
+	key = _getch();
+
+	if(key == '1')
+	{
+		status = BlockInSectorRead(data, sector_nr, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	}
+	else if(key == '2')
+	{
+		printf("\nEnter PWD (4 hexadecimal bytes)\n");
+		if(!EnterPwd(pwd_pack))
+		{
+			printf("\nPWD error\n");
+			return;
+		}
+
+		printf("\nEnter PACK (2 hexadecimal bytes)\n");
+		if(!EnterPack(&pwd_pack[4]))
+		{
+			printf("\nPACK error\n");
+			return;
+		}
+
+		status = BlockInSectorRead_PK(data, sector_nr, page_nr, T2T_WITH_PWD_AUTH, pwd_pack);
+	}
+	else if(key == '3')
+	{
+		printf("\nEnter PWD_PACK reader index (0 - 31)\n");
+		scanf("%d%*c", &pwd_pack_idx_int);
+		pwd_pack_idx = pwd_pack_idx_int;
+
+		status = BlockInSectorRead(data, sector_nr, page_nr, T2T_WITH_PWD_AUTH, pwd_pack_idx);
+	}
+	else
+	{
+		printf("\nWrong choice\n");
+		return;
+	}
 
 	if(status)
 	{
@@ -469,6 +720,10 @@ void page_in_sector_write(void)
 	uint8_t sector_nr;
 	uint8_t page_nr;
 	uint8_t data[16];
+	char key;
+	uint8_t pwd_pack[6];
+	uint8_t pwd_pack_idx;
+	int pwd_pack_idx_int;
 
 	printf(" -------------------------------------------------------------------\n");
 	printf("                   Page in sector data write                        \n");
@@ -489,7 +744,51 @@ void page_in_sector_write(void)
 		return;
 	}
 
-	status = BlockInSectorWrite(data, sector_nr, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	printf("\nEnter authentication key mode\n"
+			" (1) - No authentication\n"
+			" (2) - Provided key\n"
+			" (3) - Reader key authentication\n"
+			);
+
+	while (!_kbhit())
+			;
+	key = _getch();
+
+	if(key == '1')
+	{
+		status = BlockInSectorWrite(data, sector_nr, page_nr, T2T_WITHOUT_PWD_AUTH, 0);
+	}
+	else if(key == '2')
+	{
+		printf("\nEnter PWD (4 hexadecimal bytes)\n");
+		if(!EnterPwd(pwd_pack))
+		{
+			printf("\nPWD error\n");
+			return;
+		}
+
+		printf("\nEnter PACK (2 hexadecimal bytes)\n");
+		if(!EnterPack(&pwd_pack[4]))
+		{
+			printf("\nPACK error\n");
+			return;
+		}
+
+		status = BlockInSectorWrite_PK(data, sector_nr, page_nr, T2T_WITH_PWD_AUTH, pwd_pack);
+	}
+	else if(key == '3')
+	{
+		printf("\nEnter PWD_PACK reader index (0 - 31)\n");
+		scanf("%d%*c", &pwd_pack_idx_int);
+		pwd_pack_idx = pwd_pack_idx_int;
+
+		status = BlockInSectorWrite(data, sector_nr, page_nr, T2T_WITH_PWD_AUTH, pwd_pack_idx);
+	}
+	else
+	{
+		printf("\nWrong choice\n");
+		return;
+	}
 
 	if(status)
 	{
@@ -568,3 +867,99 @@ void linear_write(void)
 		printf("\nLinear write successful\n");
 }
 //----------------------------------------------------------------------------------
+void pwd_pack_write(void)
+{
+	UFR_STATUS status;
+	int key_index_int;
+	uint8_t key_index;
+	uint8_t pwd_pack[6];
+
+	printf(" -------------------------------------------------------------------\n");
+	printf("                Write PWD and PACK into reader                      \n");
+	printf(" -------------------------------------------------------------------\n");
+
+	printf("Enter PWD_PACK in reader number (0 - 31)\n");
+	scanf("%d%*c", &key_index_int);
+	key_index = key_index_int;
+
+	printf("\nEnter PWD (4 hexadecimal bytes)\n");
+	if(!EnterPwd(pwd_pack))
+	{
+		printf("\nPWD error\n");
+		return;
+	}
+
+	printf("\nEnter PACK (2 hexadecimal bytes)\n");
+	if(!EnterPack(&pwd_pack[4]))
+	{
+		printf("\nPACK error\n");
+		return;
+	}
+
+	status = ReaderKeyWrite(pwd_pack, key_index);
+
+	if(status)
+	{
+		printf("\nReader key writing error\n");
+		printf("Error code = %02X\n", status);
+	}
+	else
+		printf("\nKey written into reader successfully\n");
+}
+//-------------------------------------------------------------------------------------------
+
+void keys_lock(void)
+{
+	UFR_STATUS status;
+	uint8_t password[8];
+
+	printf(" -------------------------------------------------------------------\n");
+	printf("                        Reader keys lock                            \n");
+	printf(" -------------------------------------------------------------------\n");
+
+	printf("Enter password\n");
+	if(!EnterPassword(password))
+	{
+		printf("Password enter error\n");
+		return;
+	}
+
+	status = ReaderKeysLock(password);
+
+	if(status)
+	{
+		printf("\nReader keys lock error\n");
+		printf("Error code = %02X\n", status);
+	}
+	else
+		printf("\nReader keys locked successfully\n");
+}
+//--------------------------------------------------------------------------------------------
+
+void keys_unlock(void)
+{
+	UFR_STATUS status;
+	uint8_t password[8];
+
+	printf(" -------------------------------------------------------------------\n");
+	printf("                       Reader keys unlock                           \n");
+	printf(" -------------------------------------------------------------------\n");
+
+	printf("Enter password\n");
+	if(!EnterPassword(password))
+	{
+		printf("Password enter error\n");
+		return;
+	}
+
+	status = ReaderKeysUnlock(password);
+
+	if(status)
+	{
+		printf("\nReader keys unlock error\n");
+		printf("Error code = %02X\n", status);
+	}
+	else
+		printf("\nReader keys unlocked successfully\n");
+}
+//--------------------------------------------------------------------------------------------
