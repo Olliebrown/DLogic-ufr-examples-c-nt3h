@@ -21,13 +21,13 @@ help info :
 	echo "----------------------------------------------"
 
 lin32 linux32 :
-	cd linux32_release && gcc -m32 -o $(PRJNAME) ../src/*.c -I../lib/include -L../lib/linux/x86 -luFCoder-x86 -Wl,-R../lib/linux/x86
+	cd linux32_release && gcc -m32 -o $(PRJNAME) ../src/*.c -I../ufr-lib/include -L../ufr-lib/linux/x86 -luFCoder-x86 -Wl,-R../ufr-lib/linux/x86
 	echo "Making done, without errors."
 	echo "To run the example - type:"
 	echo "   'cd linux32_release && ./$(PRJNAME)'"
 
 lin64 linux64 :
-	cd linux64_release && gcc -m64 -o $(PRJNAME) ../src/*.c -I../lib/include -L../lib/linux/x86_64 -luFCoder-x86_64 -Wl,-R../lib/linux/x86_64
+	cd linux64_release && gcc -m64 -o $(PRJNAME) ../src/*.c -I../ufr-lib/include -L../ufr-lib/linux/x86_64 -luFCoder-x86_64 -Wl,-R../ufr-lib/linux/x86_64
 	echo "Making done, without errors."
 	echo "To run the example - type:"
 	echo "   'cd linux64_release && ./$(PRJNAME)'"
@@ -37,7 +37,7 @@ win32 :
 	echo "  This means You have the gcc compiler for 64 bit"
 	echo "  type 'make win64' instead of 'make win32'"
 	echo ""
-	cd win32_release && gcc -o $(PRJNAME) ../src/*.c -I../lib/include -L../lib/windows/x86 -luFCoder-x86 -Wl,-Rlib/windows/x86 -Wl,--enable-stdcall-fixup
+	cd win32_release && gcc -o $(PRJNAME) ../src/*.c -I../ufr-lib/include -L../ufr-lib/windows/x86 -luFCoder-x86 -Wl,-Rlib/windows/x86 -Wl,--enable-stdcall-fixup
 	echo "Making done, without errors."
 	echo "To run the example - type:"
 	echo "   'cd win32_release'"
@@ -52,7 +52,7 @@ win64 :
 	echo "  This means You have the gcc compiler for 32 bit"
 	echo "  type 'make win32' instead of 'make win64'"
 	echo ""
-	cd win64_release && gcc -o $(PRJNAME) ../src/*.c -I../lib/include -L../lib/windows/x86_64 -luFCoder-x86_64 -Wl,-Rlib/windows/x86_64
+	cd win64_release && gcc -o $(PRJNAME) ../src/*.c -I../ufr-lib/include -L../ufr-lib/windows/x86_64 -luFCoder-x86_64 -Wl,-Rlib/windows/x86_64
 	echo "Making done, without errors."
 	echo "You must use library from the 'lib\windows\x86_64\'"
 	echo ""
